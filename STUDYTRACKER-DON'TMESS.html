@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Study Consistency Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230d1117%22/><text y=%2268%22 x=%2250%22 font-family=%22system-ui%22 font-weight=%22900%22 font-size=%2245%22 text-anchor=%22middle%22 fill=%22%2358a6ff%22>JEE</text></svg>">
+
+<style>
+/* BRANDING */
+.branding {position: fixed; top: 0; left: 0; background: #161b22; color: #58a6ff; padding: 5px 12px; font-size: 12px; font-weight: bold; z-index: 1000; border-bottom-right-radius: 8px; border: 1px solid #30363d; border-top:none; border-left:none;}
+
+/* ALPHA THEME BASE */
+body{font-family:system-ui,sans-serif;background:#0d1117;color:#c9d1d9;padding:40px 20px 20px 20px;display:flex;gap:20px}
+.left{flex:1}
+.right{width:340px;background:#161b22;border:1px solid #30363d;padding:15px;display:block;position:relative; border-radius: 8px;}
+.hidden{display:none}
+
+.header{display:flex;justify-content:space-between;align-items:center}
+.header h1 { color: #f0f6fc; }
+.clock{font-weight:600;font-size:18px; color: #58a6ff; font-family: monospace;}
+
+.controls{background:#161b22;border:1px solid #30363d;padding:12px;display:grid;row-gap:16px; border-radius: 8px;}
+.row.stopwatch{display:flex;align-items:center;gap:12px}
+.row.target{display:flex;align-items:flex-end;gap:14px}
+.timer{font-size:26px;font-weight:700;min-width:130px; color: #f0f6fc;}
+
+/* REVERSE COUNTER & CIRCLE */
+.reverse-container {
+    display: flex;
+    flex-direction: row-reverse; 
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    background: #0d1117;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #30363d;
+}
+.circle-box {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+}
+.circle-box svg { transform: rotate(-90deg); }
+.circle-bg { fill: none; stroke: #21262d; stroke-width: 6; }
+.circle-progress { fill: none; stroke: #58a6ff; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.5s linear; }
+.reverse-info { flex: 1; text-align: right; }
+.reverse-info h4 { margin: 0; font-size: 11px; text-transform: uppercase; color: #8b949e; letter-spacing: 0.5px;}
+.reverse-timer { font-size: 24px; font-weight: 800; color: #f0f6fc; margin: 4px 0; }
+.completion-time { font-size: 13px; font-weight: 600; color: #58a6ff; margin-bottom: 2px; }
+.congrats-msg { font-size: 12px; font-weight: bold; color: #3fb950; margin-top: 4px; display: none; }
+
+button{padding:6px 10px;cursor:pointer;font-size:13px; background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 4px;}
+button:hover { background: #30363d; }
+.small-btn{padding:4px 8px;font-size:12px}
+input,textarea,select{padding:6px;width:100%;margin-top:4px;font-family:inherit; background: #0d1117; border: 1px solid #30363d; color: #f0f6fc; border-radius: 4px;}
+
+/* STOPWATCH HISTORY */
+.sw-history{margin-top:10px;font-size:12px;border-top:1px dashed #30363d;padding-top:10px}
+.sw-header{display:flex; justify-content: space-between; align-items: center; margin-bottom: 5px;}
+.sw-history h4{margin:0;font-size:13px;color:#8b949e}
+.sw-list{list-style:none;padding:0;margin:0;max-height: 120px; overflow-y: auto;}
+.sw-item{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #21262d; cursor: pointer; transition: background 0.2s;}
+.sw-item:hover{background: #1c2128;}
+.sw-item strong {color: #58a6ff;}
+
+/* HEATMAP */
+.table-wrapper { overflow-x: auto; margin-top: 20px; border-radius: 8px; border: 1px solid #30363d; background: #161b22; padding: 10px; }
+table{border-collapse: separate; border-spacing: 3px; width: 100%;}
+th,td{width:32px; height:32px; border:1px solid #30363d; text-align:left; font-size:11px; cursor:pointer; vertical-align:top; padding:2px; position:relative; border-radius: 3px; transition: all 0.15s ease;}
+th{background:#161b22; text-align:center; cursor:default; color: #8b949e; border-color: transparent; font-weight: 500;}
+
+td.green{background:#238636; border: 1px solid #3fb950;} 
+td.red{background:#da3633; border: 1px solid #f85149;}    
+td.empty{background:#0d1117; border: 1px solid #21262d;} 
+td.nil{background:transparent; border-color: transparent; cursor: default; pointer-events: none;}
+
+/* TODAY HIGHLIGHT */
+td.today-highlight {
+    border: 2px solid #58a6ff !important;
+    box-shadow: inset 0 0 8px rgba(88, 166, 255, 0.4);
+    animation: today-pulse 2s infinite ease-in-out;
+}
+@keyframes today-pulse {
+    0% { border-color: #58a6ff; }
+    50% { border-color: #f0f6fc; }
+    100% { border-color: #58a6ff; }
+}
+
+/* Hover Glow */
+td:not(.nil):hover {
+    filter: brightness(1.3);
+    border-color: #f0f6fc;
+    box-shadow: 0 0 10px rgba(88, 166, 255, 0.5);
+    z-index: 10;
+}
+
+td .dateNum{font-size:10px;opacity:.5} 
+td .star{position:absolute;bottom:2px;right:4px;font-size:12px; color: #e3b341;}
+
+/* TOOLTIP */
+#tooltip{position: fixed; background: #161b22; color: #f0f6fc; border: 1px solid #30363d; border-radius: 4px; padding: 6px 10px; font-size: 12px; display: none; z-index: 9999; pointer-events: none; box-shadow: 0 4px 10px rgba(0,0,0,0.5);}
+
+.stats{margin-top:20px; display: flex; flex-direction: column; gap: 10px;}
+.summary-card{background: #161b22; border: 1px solid #30363d; padding: 12px; border-radius: 4px;}
+.summary-card h4{margin: 0 0 8px 0; font-size: 14px; border-bottom: 1px solid #30363d; padding-bottom: 4px; color: #8b949e;}
+.summary-grid{display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px;}
+
+/* EVENTS */
+.events{margin-top:25px;padding:15px;border-top:2px solid #58a6ff;position:relative}
+.events h2{display:flex;justify-content:space-between;align-items:center;margin:0 0 10px 0; color: #f0f6fc;}
+.add-event{font-size:20px;cursor:pointer; color: #58a6ff;}
+.event-form{position:absolute;top:30px;right:0;background:#161b22;border:1px solid #30363d;padding:10px;display:none;z-index:5;width:220px; border-radius: 8px;}
+.event{margin-top:12px;padding:10px;background:#0d1117;position:relative; border-radius: 6px; border: 1px solid #30363d;}
+.event-name{font-weight:600; color: #f0f6fc;}
+.event-countdown{font-size:20px;font-weight:700;margin-top:6px; color: #58a6ff;}
+.remove-event{position:absolute;top:4px;right:6px;cursor:pointer;font-size:14px;opacity:.6; color: #f85149;}
+
+/* RIGHT PANEL */
+.close-btn{position:absolute;top:8px;right:10px;cursor:pointer;font-size:18px;opacity:.6}
+.section{margin-bottom:16px}
+.section h3{margin:0 0 8px 0; color: #8b949e;}
+
+.target-item{display:flex;align-items:center;gap:6px;margin-bottom:6px; padding: 4px; cursor: grab; background: #1c2128; border-radius: 4px; border: 1px solid transparent;}
+.target-item:active { cursor: grabbing; }
+.target-item.dragging { opacity: 0.5; border: 1px dashed #58a6ff; }
+.target-text{flex:1; font-size: 14px;}
+.target-text.done{text-decoration:line-through;opacity:.4}
+.target-actions{display:flex;gap:4px; align-items: center;}
+.target-edit-input{flex:1;padding:4px;font-size:13px; border: 1px solid #58a6ff; background: #0d1117; color: white; border-radius: 4px;}
+
+.target-input{display:flex;gap:6px;margin-top:6px}
+.target-input input{flex:1}
+
+/* CLOUD SYNC */
+.sync-panel { background: #0d1117; border: solid 1px #30363d; padding: 10px; margin-bottom: 15px; border-radius: 6px; }
+.sync-btn { width: 100%; margin-top: 5px; background: #21262d; color: #58a6ff; border: 1px solid #30363d; font-weight: bold; }
+.sync-status { font-size: 10px; color: #8b949e; margin-top: 4px; text-align: center; }
+
+/* LOGIN OVERLAY CSS */
+#loginPage {position:fixed; top:0; left:0; width:100%; height:100%; background:#0d1117; z-index:10000; display:flex; justify-content:center; align-items:center;}
+.login-card {background:#161b22; padding:30px; border-radius:12px; border:1px solid #30363d; width:300px; text-align:center; box-shadow: 0 10px 30px rgba(0,0,0,0.5);}
+</style>
+</head>
+
+<body>
+
+<div id="loginPage">
+    <div class="login-card">
+        <h2 style="color:#58a6ff; margin-bottom:10px;">JEE Tracker</h2>
+        <p style="color:#8b949e; font-size:12px; margin-bottom:20px;">Authorized Access Only</p>
+        <input type="password" id="accessKey" placeholder="Enter Secret Key" style="margin-bottom:15px; text-align:center;">
+        <button id="loginBtn" style="width:100%; background:#238636; color:white; border:none; padding:10px; font-weight:bold;">Unlock Dashboard</button>
+        <div id="loginError" style="color:#da3633; font-size:11px; margin-top:10px; display:none;">Invalid Access Key</div>
+    </div>
+</div>
+
+<div class="branding">Made By Sujan</div>
+
+<div class="left">
+  <div class="header">
+    <h1>Study Consistency Tracker</h1>
+    <div class="clock" id="clock"></div>
+  </div>
+
+  <div class="controls">
+    <div class="row stopwatch">
+      <button id="startBtn" style="background: #238636; color: white; border: none;">Start</button>
+      <button id="pauseBtn">Pause</button>
+      <button id="stopBtn">Stop</button>
+      <div class="timer" id="timer">00:00:00</div>
+    </div>
+
+    <div class="reverse-container">
+        <div class="reverse-info">
+            <h4 id="targetStatusText">To Reach Target</h4>
+            <div id="targetReachedAt" class="completion-time">ETA: --:--</div>
+            <div class="reverse-timer" id="reverseTimer">08:00:00</div>
+            <div id="congrats" class="congrats-msg">CONGRATULATIONS. TARGET COMPLETED</div>
+        </div>
+        <div class="circle-box">
+            <svg width="80" height="80">
+                <circle class="circle-bg" cx="40" cy="40" r="35"></circle>
+                <circle id="progressCircle" class="circle-progress" cx="40" cy="40" r="35" stroke-dasharray="219.9" stroke-dashoffset="219.9"></circle>
+            </svg>
+        </div>
+    </div>
+
+    <div class="sw-history">
+      <div class="sw-header">
+        <h4>Recent Sessions</h4>
+        <button id="clearHistoryBtn" class="small-btn" style="padding: 2px 5px;">Clear</button>
+      </div>
+      <div id="swHistoryList" class="sw-list"></div>
+    </div>
+    <div class="row target">
+      <label style="width:120px; color: #8b949e; font-size: 11px;">Target Hours
+        <input type="number" id="targetHours" value="8" />
+      </label>
+      <button id="setTargetBtn" class="small-btn">Set</button>
+    </div>
+  </div>
+
+  <div class="table-wrapper">
+    <table id="heatmap"></table>
+  </div>
+  
+  <div class="stats">
+    <div class="summary-card">
+        <h4>🔥 Status</h4>
+        <div>Current Streak: <strong id="streak" style="color: #58a6ff;">0</strong> days</div>
+    </div>
+
+    <div class="summary-card">
+        <h4>📅 Last 7 Days Summary</h4>
+        <div class="summary-grid">
+            <div>Total Hours: <strong id="weeklyTotal" style="color: #f0f6fc;">0.00</strong></div>
+            <div>Avg/Day: <strong id="weeklyAvg" style="color: #f0f6fc;">0.00</strong></div>
+        </div>
+    </div>
+  </div>
+
+  <div class="events">
+    <h2>Major Events <span class="add-event" id="addEvent">＋</span></h2>
+    <div class="event-form" id="eventForm">
+      <label>Event Name<input type="text" id="eventName" /></label>
+      <label>Event Date<input type="date" id="eventDate" /></label>
+      <button id="saveEvent" class="small-btn" style="width:100%; margin-top: 10px;">Add</button>
+    </div>
+    <div id="eventsList"></div>
+  </div>
+</div>
+
+<div class="right" id="rightPanel">
+  <div class="sync-panel">
+    <strong style="display:block; margin-bottom: 5px;">Cloud Backup</strong>
+    <div style="display:flex; gap:5px; margin-top:5px;">
+        <button id="cloudManualSync" class="small-btn sync-btn">Backup Now</button>
+        <button id="cloudFetch" class="small-btn sync-btn" style="background:#238636; color: white; border: none;">Fetch Data</button>
+    </div>
+    <div id="syncStatus" class="sync-status">Status: Connected</div>
+  </div>
+
+  <div id="todayView">
+    <h3 id="todayTitle" style="color: #f0f6fc;"></h3>
+    <div class="section">
+      <h3>Today's Targets</h3>
+      <div id="todayTargets" class="drag-container"></div>
+      <div class="target-input">
+        <input type="text" id="todayTargetInput" placeholder="Add target..." />
+        <button id="addTodayTarget" class="small-btn">Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="dateEditor" class="hidden">
+    <div class="close-btn" id="closeEditor">×</div>
+    <h3 id="editDate" style="color: #f0f6fc;"></h3>
+    <div class="section">
+      <h3>Targets</h3>
+      <div id="dateTargets" class="drag-container"></div>
+      <div class="target-input">
+        <input type="text" id="dateTargetInput" placeholder="Add target..." />
+        <button id="addDateTarget" class="small-btn">Add</button>
+      </div>
+    </div>
+    <div class="section">
+      <h3>Study Log</h3>
+      <label>Hours<input type="number" id="editHours" step="0.01" /></label>
+      <label>Notes<textarea id="editNote" rows="3"></textarea></label>
+      <label>Special<select id="taskType"><option value="">None</option><option value="upcoming">Upcoming ⭐</option><option value="completed">Completed ⭐</option></select></label>
+      <label>Special Name<textarea id="taskNote" rows="2"></textarea></label>
+    </div>
+    <button id="saveEntry" style="width:100%; background: #58a6ff; color: white; border: none; padding: 10px; font-weight: bold;">Save Progress</button>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+/* --- 1. LOGIN & PWA LOGIC (MUST RUN FIRST) --- */
+const MY_SECRET_KEY = 'SUJAN2026'; 
+
+if (sessionStorage.getItem('isAuthorized') === 'true') {
+    document.getElementById('loginPage').style.display = 'none';
+}
+
+function handleLogin() {
+    const input = document.getElementById('accessKey').value;
+    const err = document.getElementById('loginError');
+    if (input === MY_SECRET_KEY) {
+        sessionStorage.setItem('isAuthorized', 'true');
+        document.getElementById('loginPage').style.display = 'none';
+        cloudFetch.click(); // Auto-fetch on successful login
+    } else {
+        err.style.display = 'block';
+        setTimeout(() => err.style.display = 'none', 2000);
+    }
+}
+
+document.getElementById('loginBtn').onclick = handleLogin;
+document.getElementById('accessKey').onkeydown = (e) => { if(e.key==='Enter') handleLogin(); };
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+/* --- 2. EXISTING APP LOGIC --- */
+const CLOUD_URL = "https://script.google.com/macros/s/AKfycby5mchrg14T8amyEaCqO-LE2ANv8ZPnU2tlFeZ-aqSEgHtopCpUKJoanCCN2yuAJqk/exec";
+const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const weekdays=["S","M","T","W","T","F","S"];
+let data=JSON.parse(localStorage.getItem('studyData')||'{}');
+let dayTargets=JSON.parse(localStorage.getItem('dayTargets')||'{}');
+let events=JSON.parse(localStorage.getItem('majorEvents')||'[]');
+let currentTarget = localStorage.getItem('currentWorkingTarget') ? parseFloat(localStorage.getItem('currentWorkingTarget')) : 8;
+const CURRENT_YEAR = 2026;
+
+let swInterval = null;
+let startTime = localStorage.getItem('swStartTime') ? parseInt(localStorage.getItem('swStartTime')) : null;
+let accumulatedTime = localStorage.getItem('swAccumulatedTime') ? parseInt(localStorage.getItem('swAccumulatedTime')) : 0;
+let running = localStorage.getItem('swRunning') === 'true';
+let swHistory = JSON.parse(localStorage.getItem('swHistory') || '[]');
+
+const formatTime = s => {
+    const isNeg = s < 0; const absS = Math.abs(s);
+    const hrs = Math.floor(absS / 3600); const mins = Math.floor((absS % 3600) / 60); const secs = absS % 60;
+    return (isNeg ? "-" : "") + `${String(hrs).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+};
+
+function updateTimerDisplay() {
+    let currentTotal = accumulatedTime;
+    if (running && startTime) currentTotal += (Math.floor(Date.now() / 1000) - startTime);
+    timer.textContent = formatTime(currentTotal);
+    const targetSeconds = currentTarget * 3600; const remaining = targetSeconds - currentTotal;
+    if (remaining > 0) {
+        const finishDate = new Date(Date.now() + (remaining * 1000));
+        targetReachedAt.textContent = `Finish at ${finishDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+        targetReachedAt.style.display = "block";
+    } else targetReachedAt.style.display = "none";
+    if (remaining <= 0) { reverseTimer.textContent = "00:00:00"; congrats.style.display = "block"; targetStatusText.textContent = "Goal Achieved";
+    } else { reverseTimer.textContent = formatTime(remaining); congrats.style.display = "none"; targetStatusText.textContent = "To Reach Target"; }
+    const circle = document.getElementById('progressCircle'); const radius = 35; const circumference = 2 * Math.PI * radius; 
+    let percent = Math.min(currentTotal / targetSeconds, 1);
+    circle.style.strokeDasharray = circumference; circle.style.strokeDashoffset = circumference - (percent * circumference);
+    circle.style.stroke = percent >= 1 ? "#3fb950" : "#58a6ff";
+}
+
+function startStopwatch() { if (running) return; running = true; startTime = Math.floor(Date.now() / 1000); localStorage.setItem('swStartTime', startTime); localStorage.setItem('swRunning', 'true'); swInterval = setInterval(updateTimerDisplay, 1000); }
+function pauseStopwatch() { if (!running) return; accumulatedTime += (Math.floor(Date.now() / 1000) - startTime); running = false; startTime = null; localStorage.setItem('swAccumulatedTime', accumulatedTime); localStorage.setItem('swRunning', 'false'); localStorage.removeItem('swStartTime'); clearInterval(swInterval); updateTimerDisplay(); }
+function stopAndRecord() {
+    let finalSeconds = accumulatedTime; if (running && startTime) finalSeconds += (Math.floor(Date.now() / 1000) - startTime);
+    if (finalSeconds > 0) {
+        swHistory.unshift({ duration: formatTime(finalSeconds), timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        if (swHistory.length > 10) swHistory.pop(); localStorage.setItem('swHistory', JSON.stringify(swHistory)); renderSwHistory();
+    }
+    running = false; startTime = null; accumulatedTime = 0; localStorage.setItem('swRunning', 'false'); localStorage.setItem('swAccumulatedTime', '0'); localStorage.removeItem('swStartTime'); clearInterval(swInterval); updateTimerDisplay();
+}
+
+targetHours.value = currentTarget; if (running) swInterval = setInterval(updateTimerDisplay, 1000);
+updateTimerDisplay(); startBtn.onclick = startStopwatch; pauseBtn.onclick = pauseStopwatch; stopBtn.onclick = stopAndRecord;
+setTargetBtn.onclick = () => { currentTarget = parseFloat(targetHours.value) || 8; localStorage.setItem('currentWorkingTarget', currentTarget); updateTimerDisplay(); alert("Target updated to " + currentTarget + "h."); };
+
+async function syncToCloud() {
+    if (sessionStorage.getItem('isAuthorized') !== 'true') return;
+    syncStatus.textContent = "Status: Syncing..."; const payload = {};
+    for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); payload[key] = localStorage.getItem(key); }
+    try { await fetch(CLOUD_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) }); syncStatus.textContent = "Status: Last synced " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch (e) { syncStatus.textContent = "Status: Sync Error"; }
+}
+
+cloudManualSync.onclick = syncToCloud;
+cloudFetch.onclick = async () => { 
+    if (sessionStorage.getItem('isAuthorized') !== 'true') return;
+    if(!confirm("Fetch cloud data?")) return; 
+    try { 
+        const r = await fetch(CLOUD_URL); 
+        const cloudData = await r.json(); 
+        for (const k in cloudData) localStorage.setItem(k, cloudData[k]); 
+        location.reload(); 
+    } catch (e) { alert("Fetch failed."); } 
+};
+
+setInterval(()=>clock.textContent=new Date().toLocaleTimeString(),1000);
+function todayKey(){const d=new Date(); return `${months[d.getMonth()]}-${d.getDate()}`;}
+
+function buildTable(){
+    heatmap.innerHTML=''; 
+    const now = new Date();
+    const curMIdx = now.getMonth();
+    const curD = now.getDate();
+    const h=document.createElement('tr'); 
+    h.innerHTML='<th>Year '+CURRENT_YEAR+'</th>'+Array.from({length:31},(_,i)=>`<th>${i+1}</th>`).join(''); 
+    heatmap.appendChild(h);
+
+    months.forEach((m, mIdx) => {
+        const r = document.createElement('tr');
+        r.innerHTML = `<th>${m}</th>`;
+        const daysInMonth = new Date(CURRENT_YEAR, mIdx + 1, 0).getDate();
+        for(let d=1; d<=31; d++){
+            const c = document.createElement('td');
+            const k = `${m}-${d}`;
+            if(d > daysInMonth) {
+                c.classList.add('nil');
+            } else {
+                c.innerHTML = `<div class='dateNum'>${d}</div>`;
+                const e = data[k];
+                if(mIdx === curMIdx && d === curD) c.classList.add('today-highlight');
+                if(e && e.hours !== undefined){ if(!e.taskType) c.classList.add(e.status === 'success' ? 'green' : 'red'); } else c.classList.add('empty');
+                if(e?.taskType)c.innerHTML+=`<div class='star'>⭐</div>`;
+                c.onmousemove = ev => { if(e?.hours !== undefined){ tooltip.innerHTML = `Hours: ${e.hours} (Target: ${e.usedTarget})`; tooltip.style.display = 'block'; tooltip.style.left = (ev.clientX + 15) + 'px'; tooltip.style.top = (ev.clientY + 15) + 'px'; } };
+                c.onmouseleave = () => tooltip.style.display = 'none'; 
+                c.onclick = () => openDate(k);
+            }
+            r.appendChild(c);
+        }
+        heatmap.appendChild(r);
+    }); 
+    updateStats();
+}
+
+function updateStats() {
+    const ks=Object.keys(data).sort((a,b) => { const [am, ad] = a.split('-'); const [bm, bd] = b.split('-'); return months.indexOf(am) - months.indexOf(bm) || ad - bd; });
+    let s=0; for(let i=ks.length-1; i>=0; i--){ const e=data[ks[i]]; if(e?.hours!==undefined && e.status === 'success') s++; else if(e?.hours !== undefined) break; } streak.textContent=s;
+    let total = 0; const now = new Date();
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(now); d.setDate(now.getDate() - (i+1));
+        const k = `${months[d.getMonth()]}-${d.getDate()}`;
+        if (data[k] && data[k].hours !== undefined) total += data[k].hours;
+    }
+    weeklyTotal.textContent = total.toFixed(2);
+    weeklyAvg.textContent = (total / 7).toFixed(2);
+}
+
+function showToday(){dateEditor.classList.add('hidden');todayView.classList.remove('hidden');renderTodayTargets();todayTitle.textContent=`Today • ${new Date().toDateString()}`}
+function openDate(k){activeKey=k;todayView.classList.add('hidden');dateEditor.classList.remove('hidden');editDate.textContent=k;editHours.value=data[k]?.hours??'';editNote.value=data[k]?.note??'';taskType.value=data[k]?.taskType??'';taskNote.value=data[k]?.taskNote??'';renderDateTargets(k)}
+closeEditor.onclick=showToday;
+
+function renderTargets(container, key) {
+    container.innerHTML = '';
+    const targets = dayTargets[key] || [];
+    targets.forEach((t, i) => {
+        const d = document.createElement('div');
+        d.className = 'target-item';
+        d.draggable = true;
+        d.dataset.index = i;
+        d.innerHTML = `
+            <span class='target-text ${t.done ? 'done' : ''}'>${t.text}</span>
+            <div class='target-actions'>
+                <input type='checkbox' ${t.done ? 'checked' : ''} />
+                <button class='small-btn edit-btn'>✎</button>
+                <button class='small-btn del-btn'>✕</button>
+            </div>`;
+        d.querySelector('input[type="checkbox"]').onchange = e => {
+            t.done = e.target.checked;
+            saveTargets();
+            renderTargets(container, key);
+            syncToCloud();
+        };
+        const editBtn = d.querySelector('.edit-btn');
+        editBtn.onclick = () => {
+            const span = d.querySelector('.target-text');
+            if (editBtn.textContent === '✎') {
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'target-edit-input';
+                input.value = t.text;
+                span.replaceWith(input);
+                editBtn.textContent = 'OK';
+                input.focus();
+                input.onkeydown = e => { if(e.key === 'Enter') editBtn.click(); };
+            } else {
+                const input = d.querySelector('.target-edit-input');
+                if (input && input.value.trim()) {
+                    t.text = input.value.trim();
+                    saveTargets();
+                    renderTargets(container, key);
+                    syncToCloud();
+                }
+            }
+        };
+        d.querySelector('.del-btn').onclick = () => {
+            dayTargets[key].splice(i, 1);
+            saveTargets();
+            renderTargets(container, key);
+            syncToCloud();
+        };
+        d.addEventListener('dragstart', () => d.classList.add('dragging'));
+        d.addEventListener('dragend', () => d.classList.remove('dragging'));
+        container.appendChild(d);
+    });
+    container.ondragover = e => {
+        e.preventDefault();
+        const afterElement = getDragAfterElement(container, e.clientY);
+        const dragging = document.querySelector('.dragging');
+        if (afterElement == null) {
+            container.appendChild(dragging);
+        } else {
+            container.insertBefore(dragging, afterElement);
+        }
+    };
+    container.ondrop = () => {
+        const newOrder = [];
+        container.querySelectorAll('.target-item').forEach(item => {
+            const idx = item.dataset.index;
+            newOrder.push(targets[idx]);
+        });
+        dayTargets[key] = newOrder;
+        saveTargets();
+        renderTargets(container, key);
+        syncToCloud();
+    };
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.target-item:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function saveTargets(){localStorage.setItem('dayTargets',JSON.stringify(dayTargets))}
+function renderTodayTargets(){renderTargets(todayTargets,todayKey())}
+function renderDateTargets(k){renderTargets(dateTargets,k)}
+addTodayTarget.onclick=()=>{const v=todayTargetInput.value.trim();if(!v)return;dayTargets[todayKey()]=dayTargets[todayKey()]||[];dayTargets[todayKey()].push({text:v,done:false});todayTargetInput.value='';saveTargets();renderTodayTargets();syncToCloud()}
+addDateTarget.onclick=()=>{const v=dateTargetInput.value.trim();if(!v)return;dayTargets[activeKey]=dayTargets[activeKey]||[];dayTargets[activeKey].push({text:v,done:false});dateTargetInput.value='';saveTargets();renderDateTargets(activeKey);syncToCloud()}
+saveEntry.onclick=()=>{ const hrs = editHours.value===''?undefined:Number(editHours.value); data[activeKey] = { hours: hrs, note: editNote.value, taskType: taskType.value, taskNote: taskNote.value, status: (hrs >= currentTarget ? 'success' : 'fail'), usedTarget: currentTarget }; localStorage.setItem('studyData',JSON.stringify(data)); buildTable(); syncToCloud(); }
+function renderEvents(){eventsList.innerHTML='';events.forEach((e,i)=>{const d=document.createElement('div');d.className='event'; d.innerHTML=`<div class='remove-event'>×</div><div class='event-name'>${e.name}</div><div class='event-countdown' id='ec${i}'></div>`; d.querySelector('.remove-event').onclick=()=>{events.splice(i,1);localStorage.setItem('majorEvents',JSON.stringify(events));renderEvents();syncToCloud()}; eventsList.appendChild(d); const tick=()=>{const diff=new Date(e.date)-new Date();const el=document.getElementById('ec'+i);if(!el)return; if(diff<=0){el.textContent='Passed';return} el.textContent=`${Math.floor(diff/86400000)}d ${Math.floor(diff%86400000/3600000)}h ${Math.floor(diff%3600000/60000)}m`}; tick(); setInterval(tick,60000)})}
+addEvent.onclick=()=>eventForm.style.display=eventForm.style.display==='block'?'none':'block';
+saveEvent.onclick=()=>{if(!eventName.value||!eventDate.value)return;events.push({name:eventName.value,date:eventDate.value}); localStorage.setItem('majorEvents',JSON.stringify(events));renderEvents();eventForm.style.display='none';syncToCloud()}
+function renderSwHistory() { swHistoryList.innerHTML = swHistory.map(item => `<div class="sw-item"><span>${item.timestamp}</span><strong>${item.duration}</strong></div>`).join(''); }
+
+renderSwHistory(); renderEvents(); buildTable(); showToday();
+clearHistoryBtn.onclick = () => { if(confirm("Clear session history?")) { swHistory = []; localStorage.setItem('swHistory', JSON.stringify(swHistory)); renderSwHistory(); syncToCloud(); } };
+</script>
+</body>
+</html>
+
+
