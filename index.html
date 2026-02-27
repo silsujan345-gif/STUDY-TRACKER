@@ -722,16 +722,7 @@ async function silentFetch() {
     
 /* --- AUTO-SYNC AUTOMATION --- */
 
-/* --- TRUE TWO-WAY SYNC AUTOMATION --- */
-setInterval(async () => {
-    if (sessionStorage.getItem('isAuthorized') === 'true') {
-        // Step 1: Push your current progress to the cloud
-        await syncToCloud(); 
-        
-        // Step 2: Pull any updates from other devices
-        await silentFetch(); 
-    }
-}, 30000); // Runs every 30 seconds
+
 // Also sync immediately when the user stops the timer or saves a log
 const originalStopAndRecord = stopAndRecord;
 stopAndRecord = function() {
@@ -742,6 +733,7 @@ stopAndRecord = function() {
 </script>
 </body>
 </html>
+
 
 
 
