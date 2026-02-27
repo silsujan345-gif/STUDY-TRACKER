@@ -634,14 +634,57 @@ function renderSwHistory() { swHistoryList.innerHTML = swHistory.map(item => `<d
 renderSwHistory(); renderEvents(); buildTable(); showToday();
 clearHistoryBtn.onclick = () => { if(confirm("Clear session history?")) { swHistory = []; localStorage.setItem('swHistory', JSON.stringify(swHistory)); renderSwHistory(); syncToCloud(); } };
 
-/* --- AUTO-SYNC AUTOMATION --- */
-// Syncs every 30 seconds if the user is authorized
-setInterval(() => {
-    if (sessionStorage.getItem('isAuthorized') === 'true') {
-        syncToCloud();
-    }
-}, 30000); 
+/* --- THE SILENT SYNC ENGINE --- */
+async function silentFetch() {
+    if (sessionStorage.getItem('isAuthorized') !== 'true') return;
+    try {
+        const r = await fetch(CLOUD_URL);
+        const cloudData = await r.json();
+        
+        // Update LocalStorage with fresh Cloud Data
+        for (const k in cloudData) {
+            localStorage.setItem(k, cloudData[k]);
+        }
+        
+        // RE-SYNC THE STOPWATCH STATE
+        const cloudRunning = localStorage.getItem('swRunning') === 'true';
+        if (cloudRunning && !running) {
+            // Start local timer if cloud says it's running
+            running = true;
+            startTime = parseInt(localStorage.getItem('swStartTime'));
+            if (!swInterval) swInterval = setInterval(updateTimerDisplay, 1000);
+        } else if (!cloudRunning && running) {
+            // Stop local timer if cloud says it's stopped/paused
+            running = false;
+            clearInterval(swInterval);
+            swInterval = null;
+            accumulatedTime = parseInt(localStorage.getItem('swAccumulatedTime') || 0);
+            updateTimerDisplay();
+        }
 
+        // RE-SYNC THE UI WITHOUT RELOADING
+        data = JSON.parse(localStorage.getItem('studyData') || '{}');
+        dayTargets = JSON.parse(localStorage.getItem('dayTargets') || '{}');
+        buildTable(); 
+        updateStats();
+        renderTodayTargets();
+    } catch (e) { 
+        console.log("Silent Sync Check Failed", e); 
+    }
+}
+    
+/* --- AUTO-SYNC AUTOMATION --- */
+
+/* --- TRUE TWO-WAY SYNC AUTOMATION --- */
+setInterval(async () => {
+    if (sessionStorage.getItem('isAuthorized') === 'true') {
+        // Step 1: Push your current progress to the cloud
+        await syncToCloud(); 
+        
+        // Step 2: Pull any updates from other devices
+        await silentFetch(); 
+    }
+}, 30000); // Runs every 30 seconds
 // Also sync immediately when the user stops the timer or saves a log
 const originalStopAndRecord = stopAndRecord;
 stopAndRecord = function() {
@@ -652,6 +695,7 @@ stopAndRecord = function() {
 </script>
 </body>
 </html>
+
 
 
 
