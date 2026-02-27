@@ -437,9 +437,26 @@ setTargetBtn.onclick = () => { currentTarget = parseFloat(targetHours.value) || 
 
 async function syncToCloud() {
     if (sessionStorage.getItem('isAuthorized') !== 'true') return;
-    syncStatus.textContent = "Status: Syncing..."; const payload = {};
-    for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); payload[key] = localStorage.getItem(key); }
-    try { await fetch(CLOUD_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) }); syncStatus.textContent = "Status: Last synced " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); } catch (e) { syncStatus.textContent = "Status: Sync Error"; }
+    
+    // We update the status text so you can see it working in the background
+    syncStatus.textContent = "Status: Auto-syncing..."; 
+    
+    const payload = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        payload[key] = localStorage.getItem(key);
+    }
+    
+    try {
+        await fetch(CLOUD_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify(payload) 
+        });
+        syncStatus.textContent = "Status: Cloud Synced " + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    } catch (e) {
+        syncStatus.textContent = "Status: Sync Error";
+    }
 }
 
 cloudManualSync.onclick = syncToCloud;
@@ -616,9 +633,26 @@ function renderSwHistory() { swHistoryList.innerHTML = swHistory.map(item => `<d
 
 renderSwHistory(); renderEvents(); buildTable(); showToday();
 clearHistoryBtn.onclick = () => { if(confirm("Clear session history?")) { swHistory = []; localStorage.setItem('swHistory', JSON.stringify(swHistory)); renderSwHistory(); syncToCloud(); } };
+
+/* --- AUTO-SYNC AUTOMATION --- */
+// Syncs every 30 seconds if the user is authorized
+setInterval(() => {
+    if (sessionStorage.getItem('isAuthorized') === 'true') {
+        syncToCloud();
+    }
+}, 30000); 
+
+// Also sync immediately when the user stops the timer or saves a log
+const originalStopAndRecord = stopAndRecord;
+stopAndRecord = function() {
+    originalStopAndRecord();
+    syncToCloud();
+};
+    
 </script>
 </body>
 </html>
+
 
 
 
