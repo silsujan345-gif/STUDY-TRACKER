@@ -659,7 +659,7 @@ async function silentFetch() {
 
         if (!cloudRunning && running) {
             running = false;
-            clearInterval(swInterval);
+            if (swInterval) clearInterval(swInterval);
             swInterval = null;
             accumulatedTime = cloudAccumulated;
             startTime = null;
@@ -675,7 +675,9 @@ async function silentFetch() {
         buildTable(); 
         updateStats();
         renderTodayTargets();
-    } catch (e) { console.log("Sync check failed:", e); }
+    } catch (e) { 
+        console.log("Sync check failed:", e); 
+    }
 }
 
 /* --- EVENT-DRIVEN SYNC --- */
@@ -687,13 +689,14 @@ document.addEventListener('visibilitychange', () => {
 
 // Override stopAndRecord to sync on click
 const originalStopAndRecord = stopAndRecord;
-stopAndRecord = function() {
+window.stopAndRecord = function() {
     originalStopAndRecord();
     syncToCloud();
 };
 </script>
 </body>
 </html>
+
 
 
 
