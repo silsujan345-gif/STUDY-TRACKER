@@ -1,13 +1,13 @@
 {
   "name": "JEE Study Tracker",
-  "short_name": "StudySync",
+  "short_name": "JEE",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0d1117",
   "theme_color": "#58a6ff",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3503/3503741.png",
+      "src": "https://img.icons8.com/external-flat-juicy-fish/512/external-books-back-to-school-flat-juicy-fish.png",
       "sizes": "512x512",
       "type": "image/png"
     }
