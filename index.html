@@ -401,8 +401,27 @@ function updateTimerDisplay() {
     circle.style.stroke = percent >= 1 ? "#3fb950" : "#58a6ff";
 }
 
-function startStopwatch() { if (running) return; running = true; startTime = Math.floor(Date.now() / 1000); localStorage.setItem('swStartTime', startTime); localStorage.setItem('swRunning', 'true'); swInterval = setInterval(updateTimerDisplay, 1000); }
-function pauseStopwatch() { if (!running) return; accumulatedTime += (Math.floor(Date.now() / 1000) - startTime); running = false; startTime = null; localStorage.setItem('swAccumulatedTime', accumulatedTime); localStorage.setItem('swRunning', 'false'); localStorage.removeItem('swStartTime'); clearInterval(swInterval); updateTimerDisplay(); }
+function startStopwatch() { 
+    if (running) return; 
+    running = true; 
+    startTime = Math.floor(Date.now() / 1000); 
+    localStorage.setItem('swStartTime', startTime); 
+    localStorage.setItem('swRunning', 'true'); 
+    swInterval = setInterval(updateTimerDisplay, 1000);
+    syncToCloud(); // Immediate cloud sync so other devices see the start
+}
+function pauseStopwatch() { 
+    if (!running) return; 
+    accumulatedTime += (Math.floor(Date.now() / 1000) - startTime); 
+    running = false; 
+    startTime = null;
+    localStorage.setItem('swAccumulatedTime', accumulatedTime); 
+    localStorage.setItem('swRunning', 'false'); 
+    localStorage.removeItem('swStartTime'); 
+    clearInterval(swInterval); 
+    updateTimerDisplay();
+    syncToCloud(); // Sync the paused accumulated time
+}
 function stopAndRecord() {
     let finalSeconds = accumulatedTime; if (running && startTime) finalSeconds += (Math.floor(Date.now() / 1000) - startTime);
     if (finalSeconds > 0) {
@@ -431,6 +450,11 @@ cloudFetch.onclick = async () => {
         const r = await fetch(CLOUD_URL); 
         const cloudData = await r.json(); 
         for (const k in cloudData) localStorage.setItem(k, cloudData[k]); 
+        if (localStorage.getItem('swRunning') === 'true') {
+    running = true;
+    startTime = parseInt(localStorage.getItem('swStartTime'));
+    if (!swInterval) swInterval = setInterval(updateTimerDisplay, 1000);
+}
         location.reload(); 
     } catch (e) { alert("Fetch failed."); } 
 };
@@ -595,6 +619,7 @@ clearHistoryBtn.onclick = () => { if(confirm("Clear session history?")) { swHist
 </script>
 </body>
 </html>
+
 
 
 
