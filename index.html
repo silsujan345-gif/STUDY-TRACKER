@@ -401,6 +401,8 @@ function updateTimerDisplay() {
     circle.style.stroke = percent >= 1 ? "#3fb950" : "#58a6ff";
 }
 
+/* --- REPLACEMENT STOPWATCH FUNCTIONS --- */
+
 function startStopwatch() { 
     if (running) return; 
     running = true; 
@@ -408,20 +410,25 @@ function startStopwatch() {
     localStorage.setItem('swStartTime', startTime); 
     localStorage.setItem('swRunning', 'true'); 
     swInterval = setInterval(updateTimerDisplay, 1000);
-    syncToCloud(); // Immediate cloud sync so other devices see the start
+    
+    // Step 2 Addition: Tells other devices you started studying
+    syncToCloud(); 
 }
+    
 function pauseStopwatch() { 
     if (!running) return; 
     accumulatedTime += (Math.floor(Date.now() / 1000) - startTime); 
     running = false; 
-    startTime = null;
     localStorage.setItem('swAccumulatedTime', accumulatedTime); 
     localStorage.setItem('swRunning', 'false'); 
     localStorage.removeItem('swStartTime'); 
     clearInterval(swInterval); 
     updateTimerDisplay();
-    syncToCloud(); // Sync the paused accumulated time
+    
+    // Step 2 Addition: Tells other devices you are on a break
+    syncToCloud(); 
 }
+    
 function stopAndRecord() {
     let finalSeconds = accumulatedTime; if (running && startTime) finalSeconds += (Math.floor(Date.now() / 1000) - startTime);
     if (finalSeconds > 0) {
@@ -646,6 +653,46 @@ async function silentFetch() {
             localStorage.setItem(k, cloudData[k]);
         }
         
+        // --- THE "FORCE SYNC" LOGIC ---
+        const cloudRunning = localStorage.getItem('swRunning') === 'true';
+        const cloudStartTime = parseInt(localStorage.getItem('swStartTime'));
+        const cloudAccumulated = parseInt(localStorage.getItem('swAccumulatedTime') || 0);
+
+        // CASE 1: Cloud says PAUSED, but local is RUNNING
+        if (!cloudRunning && running) {
+            running = false;
+            clearInterval(swInterval);
+            swInterval = null;
+            accumulatedTime = cloudAccumulated; // Reset to exact cloud value
+            startTime = null;
+            updateTimerDisplay();
+        } 
+        // CASE 2: Cloud says RUNNING, but local is PAUSED/STOPPED
+        else if (cloudRunning && !running) {
+            running = true;
+            startTime = cloudStartTime;
+            accumulatedTime = cloudAccumulated;
+            if (!swInterval) swInterval = setInterval(updateTimerDisplay, 1000);
+            updateTimerDisplay();
+        }
+        // CASE 3: Both running, but cloud has a different Start Anchor (syncing drift)
+        else if (cloudRunning && running && startTime !== cloudStartTime) {
+            startTime = cloudStartTime;
+            accumulatedTime = cloudAccumulated;
+            updateTimerDisplay();
+        }
+
+        // Refresh UI components
+        buildTable(); 
+        updateStats();
+        renderTodayTargets();
+        if (typeof renderBacklogs === 'function') renderBacklogs(); 
+        
+    } catch (e) { 
+        console.log("Sync check failed:", e); 
+    }
+}
+        
         // RE-SYNC THE STOPWATCH STATE
         const cloudRunning = localStorage.getItem('swRunning') === 'true';
         if (cloudRunning && !running) {
@@ -695,6 +742,7 @@ stopAndRecord = function() {
 </script>
 </body>
 </html>
+
 
 
 
