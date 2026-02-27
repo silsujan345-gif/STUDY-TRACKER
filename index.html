@@ -653,95 +653,47 @@ async function silentFetch() {
             localStorage.setItem(k, cloudData[k]);
         }
         
-        // --- THE "FORCE SYNC" LOGIC ---
         const cloudRunning = localStorage.getItem('swRunning') === 'true';
         const cloudStartTime = parseInt(localStorage.getItem('swStartTime'));
         const cloudAccumulated = parseInt(localStorage.getItem('swAccumulatedTime') || 0);
 
-        // CASE 1: Cloud says PAUSED, but local is RUNNING
         if (!cloudRunning && running) {
             running = false;
             clearInterval(swInterval);
             swInterval = null;
-            accumulatedTime = cloudAccumulated; // Reset to exact cloud value
+            accumulatedTime = cloudAccumulated;
             startTime = null;
             updateTimerDisplay();
-        } 
-        // CASE 2: Cloud says RUNNING, but local is PAUSED/STOPPED
-        else if (cloudRunning && !running) {
+        } else if (cloudRunning && !running) {
             running = true;
             startTime = cloudStartTime;
             accumulatedTime = cloudAccumulated;
             if (!swInterval) swInterval = setInterval(updateTimerDisplay, 1000);
             updateTimerDisplay();
         }
-        // CASE 3: Both running, but cloud has a different Start Anchor (syncing drift)
-        else if (cloudRunning && running && startTime !== cloudStartTime) {
-            startTime = cloudStartTime;
-            accumulatedTime = cloudAccumulated;
-            updateTimerDisplay();
-        }
 
-        // Refresh UI components
         buildTable(); 
         updateStats();
         renderTodayTargets();
-        if (typeof renderBacklogs === 'function') renderBacklogs(); 
-        
-    } catch (e) { 
-        console.log("Sync check failed:", e); 
-    }
+    } catch (e) { console.log("Sync check failed:", e); }
 }
-        
-        // RE-SYNC THE STOPWATCH STATE
-        const cloudRunning = localStorage.getItem('swRunning') === 'true';
-        if (cloudRunning && !running) {
-            // Start local timer if cloud says it's running
-            running = true;
-            startTime = parseInt(localStorage.getItem('swStartTime'));
-            if (!swInterval) swInterval = setInterval(updateTimerDisplay, 1000);
-        } else if (!cloudRunning && running) {
-            // Stop local timer if cloud says it's stopped/paused
-            running = false;
-            clearInterval(swInterval);
-            swInterval = null;
-            accumulatedTime = parseInt(localStorage.getItem('swAccumulatedTime') || 0);
-            updateTimerDisplay();
-        }
 
-        // RE-SYNC THE UI WITHOUT RELOADING
-        data = JSON.parse(localStorage.getItem('studyData') || '{}');
-        dayTargets = JSON.parse(localStorage.getItem('dayTargets') || '{}');
-        buildTable(); 
-        updateStats();
-        renderTodayTargets();
-    } catch (e) { 
-        console.log("Silent Sync Check Failed", e); 
+/* --- EVENT-DRIVEN SYNC --- */
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && sessionStorage.getItem('isAuthorized') === 'true') {
+        silentFetch(); 
     }
-}
-    
-/* --- AUTO-SYNC AUTOMATION --- */
+});
 
-
-// Also sync immediately when the user stops the timer or saves a log
+// Override stopAndRecord to sync on click
 const originalStopAndRecord = stopAndRecord;
 stopAndRecord = function() {
     originalStopAndRecord();
     syncToCloud();
 };
-    
 </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-
 
 
 
