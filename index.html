@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
 <meta charset="UTF-8" />
 <title>Study Consistency Dashboard</title>
 <link rel="manifest" href="manifest.json?v=2"> 
@@ -10,6 +13,54 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%230d1117%22/><text y=%2268%22 x=%2250%22 font-family=%22system-ui%22 font-weight=%22900%22 font-size=%2245%22 text-anchor=%22middle%22 fill=%22%2358a6ff%22>JEE</text></svg>">
 
 <style>
+
+/* AUTOMATIC MOBILE STACKING */
+@media (max-width: 900px) {
+    body {
+        flex-direction: column; /* Stacks the dashboard vertically */
+        padding: 10px;
+        padding-top: 40px; /* Space for the "Made by Sujan" bar */
+    }
+    .left, .right {
+        width: 100% !important; /* Full width for both panels */
+    }
+    .header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .header h1 {
+        font-size: 1.4rem;
+    }
+    .timer {
+        font-size: 22px;
+        min-width: unset;
+    }
+    .reverse-container {
+        flex-direction: column-reverse; /* Puts the progress circle on top */
+        text-align: center;
+        gap: 10px;
+    }
+    .reverse-info {
+        text-align: center;
+    }
+    /* Larger touch targets for Kota grind */
+    button {
+        padding: 10px;
+        font-size: 14px;
+    }
+    /* Make heatmap scrollable on touch */
+    .table-wrapper {
+        overflow-x: scroll;
+        display: block;
+    }
+    /* Force Backlog Canvas to fit screen */
+    #backlogModal {
+        width: 90% !important;
+        max-height: 80vh;
+    }
+}
+    
 /* BRANDING */
 .branding {position: fixed; top: 0; left: 0; background: #161b22; color: #58a6ff; padding: 5px 12px; font-size: 12px; font-weight: bold; z-index: 1000; border-bottom-right-radius: 8px; border: 1px solid #30363d; border-top:none; border-left:none;}
 
@@ -544,6 +595,7 @@ clearHistoryBtn.onclick = () => { if(confirm("Clear session history?")) { swHist
 </script>
 </body>
 </html>
+
 
 
 
